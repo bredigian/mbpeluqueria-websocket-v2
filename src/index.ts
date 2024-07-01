@@ -1,6 +1,9 @@
 import Express from "express"
+import { IShift } from "./types/shifts.types"
+import { Server } from "socket.io"
 import { config } from "dotenv"
 import cors from "cors"
+import { createServer } from "http"
 
 config()
 
@@ -18,4 +21,28 @@ app.get("/", (_, res) => {
   })
 })
 
-app.listen(PORT, () => console.log(`Server running at PORT ${PORT}`))
+const socketServer = createServer(app)
+const io = new Server(socketServer, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"],
+  },
+})
+
+io.on("connection", (socket) => {
+  console.log(`${socket.handshake.query.user} is connected.`)
+
+  socket.on("reserve-shift", async (data: IShift) =>
+    socket.broadcast.emit("reserve-shift", data)
+  )
+
+  socket.on("cancel-shift", async (data: IShift) =>
+    socket.broadcast.emit("cancel-shift", data)
+  )
+
+  socket.on("disconnect", () =>
+    console.log(`${socket.handshake.query.user} is disconnected.`)
+  )
+})
+
+socketServer.listen(PORT, () => console.log(`Server running at PORT ${PORT}`))
